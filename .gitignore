@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Video files (too large for git)
+*.mov
+*.mp4
+*.avi
+*.mkv
+*.wmv
+*.flv
+
+# Audio files
+*.wav
+*.mp3
+*.aac
+*.flac
+
+# Output files
+comparison_output.mp4
+dance_analysis_report.json
+sync_scores.png
+crosscorrelation_results.txt
+*.png
+*.jpg
+*.jpeg
+
+# Test files
+test_*.mov
+test_*.mp4
+test_*.wav
+
+# Temporary files
+*.tmp
+*.temp
+*.log
