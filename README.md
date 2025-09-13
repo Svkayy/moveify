@@ -1,6 +1,6 @@
-# Dance Sync Analysis
+# Moveify - Dance Sync Analysis
 
-**How good are your moves?**
+**Upload any dance clip (or record yourself), and we auto-turn it into beat-synced steps that coach you in real time—then score your accuracy.**
 
 Dance Sync is a program that allows you to compare your dancing to a model dancer's performance. When learning a dance, it can be hard to pinpoint where you're going wrong by just looking in the mirror. Instead, record a video of your dancing and plug it into Dance Sync - it will analyze your movement and compare it to the video of the original dancer.
 
@@ -14,6 +14,8 @@ You will get a comparison video with alerts where you are not in sync and a fina
 - **Visual Comparison**: Creates side-by-side comparison videos with sync indicators
 - **Detailed Reporting**: Generates comprehensive analysis reports with limb-specific scores
 - **Score Visualization**: Creates graphs showing sync scores over time
+- **GUI Interface**: Easy-to-use graphical interface for video selection
+- **Real-time Coaching**: Beat-synced steps that coach you in real time
 
 ## How It Works
 
@@ -40,24 +42,33 @@ When input videos have different lengths or start times:
 
 ### Prerequisites
 
-- Python 3.7 or higher
+- Python 3.11 (required for MediaPipe compatibility)
 - macOS 12.5.1+ (recommended) or compatible system
 - FFmpeg for video processing
 - Praat for advanced audio analysis (optional)
 
-### Dependencies
+### Quick Setup
 
-Install the required Python packages:
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/Svkayy/moveify.git
+   cd moveify
+   ```
 
-```bash
-pip install -r requirements.txt
-```
+2. **Run the installation script**:
+   ```bash
+   ./install.sh
+   ```
 
-Or install manually:
-
-```bash
-pip install opencv-python mediapipe numpy scipy librosa soundfile matplotlib pillow
-```
+3. **Or install manually**:
+   ```bash
+   # Create virtual environment with Python 3.11
+   python3.11 -m venv venv_mediapipe
+   source venv_mediapipe/bin/activate
+   
+   # Install dependencies
+   pip install -r requirements.txt
+   ```
 
 ### System Dependencies
 
@@ -79,16 +90,30 @@ sudo apt install ffmpeg
 
 ## Usage
 
-### Basic Usage
+### Method 1: Command Line (Recommended)
+
+1. **Add your videos to the video folder**:
+   ```bash
+   cp /path/to/your/dance.mov video/
+   cp /path/to/model/dance.mov video/
+   ```
+
+2. **Run the analysis**:
+   ```bash
+   ./run_with_mediapipe.sh video/your_dance.mov video/model_dance.mov
+   ```
+
+### Method 2: Direct Python Command
 
 ```bash
-python dance.py video/your_dance.mov video/model_dance.mov
+source venv_mediapipe/bin/activate
+python3 dance.py video/your_dance.mov video/model_dance.mov
 ```
 
-### Advanced Usage
+### Method 3: GUI Interface
 
 ```bash
-python dance.py video/your_dance.mov video/model_dance.mov --output-dir results --no-video
+./launch_gui.sh
 ```
 
 ### Command Line Arguments
@@ -165,6 +190,26 @@ Detailed report: dance_analysis_report.json
 Score visualization: sync_scores.png
 ```
 
+## Project Structure
+
+```
+moveify/
+├── dance.py                    # Main dance sync analysis script
+├── dance_gui.py                # GUI interface for video selection
+├── requirements.txt            # Python dependencies
+├── README.md                   # This file
+├── crosscorrelate.praat        # Praat script for audio analysis
+├── test_dance_sync.py          # Test suite
+├── example_usage.py            # Usage examples
+├── setup.py                    # Package setup
+├── install.sh                  # Installation script
+├── launch_gui.sh               # GUI launcher
+├── run_with_mediapipe.sh       # Command line runner
+├── create_demo_videos.py       # Demo video generator
+├── .gitignore                  # Git ignore rules
+└── video/                      # Directory for dance videos
+```
+
 ## Troubleshooting
 
 ### Common Issues
@@ -220,7 +265,7 @@ Score visualization: sync_scores.png
 
 ## Contributing
 
-This is a rebuilt version of the original [dance-sync-analysis](https://github.com/Mruchus/dance-sync-analysis) repository. The code has been modernized and enhanced with additional features while maintaining the core functionality.
+This project combines dance analysis technology with real-time coaching capabilities. Contributions are welcome!
 
 ## Acknowledgments
 
