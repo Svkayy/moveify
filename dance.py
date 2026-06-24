@@ -92,23 +92,36 @@ class DanceSyncAnalyzer:
             return None, None
 
     def find_audio_offset(self, audio1: np.ndarray, audio2: np.ndarray, sr: int) -> int:
-        """Find the time offset between two audio signals using cross-correlation."""
-        # Ensure both audio signals are the same length
+        """Find the time offset (in samples) between two audio signals via cross-correlation.
+
+        Returns 0 when the audio is silent/near-silent or the correlation result is
+        degenerate (peak at the extreme edge), so a missing or quiet audio track can't
+        catastrophically mis-align the comparison (a silent clip otherwise yields a
+        full-clip-length offset that trims away all overlapping frames)."""
         min_len = min(len(audio1), len(audio2))
+        if min_len == 0:
+            return 0
         audio1 = audio1[:min_len]
         audio2 = audio2[:min_len]
-        
-        # Compute cross-correlation
+
+        # Guard: near-silent audio carries no usable synchronization signal.
+        SILENCE_RMS = 1e-3
+        rms1 = float(np.sqrt(np.mean(audio1 ** 2)))
+        rms2 = float(np.sqrt(np.mean(audio2 ** 2)))
+        if rms1 < SILENCE_RMS or rms2 < SILENCE_RMS:
+            return 0
+
+        # Compute cross-correlation and locate the peak.
         correlation = signal.correlate(audio1, audio2, mode='full')
-        
-        # Find the peak (maximum correlation)
-        peak_index = np.argmax(correlation)
-        
-        # Convert to time offset
+        peak_index = int(np.argmax(correlation))
         offset_samples = peak_index - (len(audio2) - 1)
-        offset_seconds = offset_samples / sr
-        
-        return int(offset_seconds * sr)  # Return offset in samples
+
+        # Guard: an offset that meets/exceeds the clip length is degenerate — it would
+        # trim away all overlap. Treat it as "no reliable offset detected".
+        if abs(offset_samples) >= min_len:
+            return 0
+
+        return int(offset_samples)  # offset in samples
 
     def extract_pose_landmarks(self, video_path: str) -> List[Dict]:
         """Extract pose landmarks from video using MediaPipe."""

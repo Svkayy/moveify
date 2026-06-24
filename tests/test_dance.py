@@ -107,3 +107,22 @@ def test_limb_performance_identical_is_high():
         assert limb_result["average_score"] >= 99.0, f"Limb {name} score {limb_result['average_score']} should be ~100 for identical input"
         assert limb_result["average_difference"] < 1.0, f"Limb {name} difference should be ~0 for identical input"
         assert limb_result["frames_analyzed"] == 1
+
+
+def test_find_audio_offset_silent_audio_returns_zero():
+    """A silent (or near-silent) audio track must not produce a catastrophic
+    full-clip offset — it should safely return 0 (compare from the start)."""
+    import numpy as np
+    a = DanceSyncAnalyzer()
+    silent = np.zeros(48000, dtype=np.float32)
+    assert a.find_audio_offset(silent, silent, 48000) == 0
+
+
+def test_find_audio_offset_detects_real_lag_and_is_not_degenerate():
+    import numpy as np
+    a = DanceSyncAnalyzer()
+    sr = 1000
+    base = np.zeros(4000, dtype=np.float32); base[1000:1020] = 1.0
+    delayed = np.zeros(4000, dtype=np.float32); delayed[1100:1120] = 1.0  # +100 samples
+    off = a.find_audio_offset(base, delayed, sr)
+    assert off != 0 and abs(off) < 4000          # real, non-degenerate offset
