@@ -9,21 +9,25 @@
 > **Test:** one real dance clip vs a 1.5-second-delayed copy of itself.
 > moveify detected the 1.5 s audio offset, realigned the pose series, and scored **99.2 % average sync** — proving the alignment is real.
 
+### ▶️ Video analysis in action
+
+Side-by-side MediaPipe pose tracking with live per-frame sync scoring:
+
+![moveify video analysis — side-by-side MediaPipe pose tracking with live sync %](docs/demo/demo.gif)
+
+*(Full-quality clip: [`docs/demo/comparison.mp4`](docs/demo/comparison.mp4))*
+
+### Sync report
+
 ![sync report card — pose skeletons, 99.2% sync stats, per-limb bars, Gemini coach review](docs/demo/sync-report.png)
 
 ### Live Gemini coach review (captured from the demo run)
 
 > *"Wow, your overall sync is absolutely incredible, almost a perfect 99%! Your legs and torsos are particularly on point, showing fantastic coordination. To push that even further, focus on maintaining the same level of precision with your arms, perhaps by visualizing them moving in perfect harmony with your core. Keep up this amazing work!"*
 
-### Side-by-side MediaPipe pose skeletons
-
-![side-by-side pose skeletons with sync % overlay](docs/demo/comparison-frame.png)
-
 ### Sync score over time
 
 ![sync score over time graph — avg 99.2%](docs/demo/sync_scores.png)
-
-[comparison.mp4 — rendered comparison video](docs/demo/comparison.mp4)
 
 ---
 
