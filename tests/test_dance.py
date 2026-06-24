@@ -41,18 +41,21 @@ def test_sync_score_90deg_apart_is_50():
 
 
 def test_apply_offset_aligns_shifted_series():
+    # offset > 0 => series1 (video1) starts earlier => trim series1's head
+    # series1 has 3 leading frames before content matches series2
     base = [float(i) for i in range(10)]
-    shifted = [-1.0, -1.0, -1.0] + base   # series2 is 'base' delayed by 3 frames
-    a1, a2 = apply_offset(base, shifted, 3)
+    shifted = base  # series2 is base (no lead-in)
+    series1_with_lead = [-1.0, -1.0, -1.0] + base
+    a1, a2 = apply_offset(series1_with_lead, shifted, 3)
     assert a1[0] == a2[0]
     assert len(a1) == len(a2)
     assert a1[:5] == a2[:5]
 
 
-def test_apply_offset_negative_trims_series1():
-    # offset < 0 means series1 leads → trim series1's head
-    # series1 has 2 leading frames before content matches series2
-    a1, a2 = apply_offset([9.,9.,0.,1.,2.], [0.,1.,2.,3.,4.], -2)
+def test_apply_offset_negative_trims_series2():
+    # offset < 0 => series2 (video2) starts earlier/has lead-in => trim series2's head by -offset_frames
+    # series2 has 2 leading frames before content matches series1
+    a1, a2 = apply_offset([0.,1.,2.,3.,4.], [9.,9.,0.,1.,2.], -2)
     assert len(a1) == len(a2)
     assert a1[:3] == a2[:3]  # [0.,1.,2.] == [0.,1.,2.]
 
@@ -60,3 +63,16 @@ def test_apply_offset_negative_trims_series1():
 def test_apply_offset_zero_truncates_to_min():
     a1, a2 = apply_offset([1.,2.,3.], [1.,2.], 0)
     assert len(a1) == len(a2) == 2
+
+
+def test_offset_direction_aligns_real_audio_lag():
+    import numpy as np
+    a = DanceSyncAnalyzer()
+    sr = 1000; D = 50
+    audio1 = np.zeros(2000); audio1[500:520] = 1.0          # event at 500
+    audio2 = np.zeros(2000); audio2[500+D:520+D] = 1.0       # video2 delayed by D
+    off = a.find_audio_offset(audio1, audio2, sr)            # expect negative
+    # series2 has D frames of lead-in before the shared content T
+    T = list(range(1000)); s1 = list(T); s2 = [-1]*D + list(T)
+    o1, o2 = apply_offset(s1, s2, off)
+    assert o1[:10] == o2[:10], f"offset {off} did not align (wrong trim direction)"

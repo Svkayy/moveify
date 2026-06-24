@@ -17,19 +17,18 @@ from typing import List, Tuple, Dict, Optional
 import json
 
 def apply_offset(series1, series2, offset_frames):
-    """Trim the leading frames of whichever series starts earlier so the two
-    align, then truncate both to equal length.
+    """Align two series by trimming the leading frames of whichever starts earlier.
 
-    offset_frames > 0: video2 leads (audio1 starts later) — trim series2's head.
-    offset_frames < 0: video1 leads (audio2 starts later) — trim series1's head by -offset_frames.
+    offset_frames > 0  => series1 (video1) starts earlier  => trim series1's head.
+    offset_frames < 0  => series2 (video2) starts earlier/has lead-in => trim series2's head by -offset_frames.
     offset_frames == 0: no trim; both are truncated to equal (min) length.
 
     Both returned series have equal length (min of the two after trimming).
     """
     if offset_frames > 0:
-        series2 = series2[offset_frames:]
+        series1 = series1[offset_frames:]
     elif offset_frames < 0:
-        series1 = series1[-offset_frames:]
+        series2 = series2[-offset_frames:]
     n = min(len(series1), len(series2))
     return series1[:n], series2[:n]
 
@@ -224,8 +223,8 @@ class DanceSyncAnalyzer:
         """Create side-by-side comparison video with sync indicators.
 
         offset_frames aligns the two video streams to compensate for audio offset.
-        Positive offset_frames: skip the first offset_frames frames from video2.
-        Negative offset_frames: skip the first -offset_frames frames from video1.
+        Positive offset_frames: skip the first offset_frames frames from video1 (cap1).
+        Negative offset_frames: skip the first -offset_frames frames from video2 (cap2).
         """
         cap1 = cv2.VideoCapture(video1_path)
         cap2 = cv2.VideoCapture(video2_path)
@@ -237,10 +236,10 @@ class DanceSyncAnalyzer:
         # Skip leading frames for alignment
         if offset_frames > 0:
             for _ in range(offset_frames):
-                cap2.read()
+                cap1.read()
         elif offset_frames < 0:
             for _ in range(-offset_frames):
-                cap1.read()
+                cap2.read()
 
         # Get video properties
         fps = int(cap1.get(cv2.CAP_PROP_FPS))
