@@ -85,3 +85,4 @@ samples/
 !docs/demo/*.png
 !docs/demo/*.mp4
 !docs/demo/*.json
+!docs/demo/*.gif
