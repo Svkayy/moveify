@@ -15,7 +15,6 @@ You will get a comparison video with alerts where you are not in sync and a fina
 - **Detailed Reporting**: Generates comprehensive analysis reports with limb-specific scores
 - **Score Visualization**: Creates graphs showing sync scores over time
 - **GUI Interface**: Easy-to-use graphical interface for video selection
-- **Real-time Coaching**: Beat-synced steps that coach you in real time
 
 ## How It Works
 

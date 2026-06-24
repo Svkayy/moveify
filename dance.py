@@ -8,7 +8,6 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import librosa
-import soundfile as sf
 from scipy import signal
 import matplotlib.pyplot as plt
 import os

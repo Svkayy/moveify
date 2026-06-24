@@ -76,3 +76,6 @@ test_*.wav
 *.tmp
 *.temp
 *.log
+.venv/
+.env
+samples/
