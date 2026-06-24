@@ -6,9 +6,11 @@ Allows users to select videos from their laptop using a file picker
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+import json
 import os
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 class DanceSyncGUI:
@@ -210,8 +212,8 @@ class DanceSyncGUI:
         )
         self.progress_label.pack(pady=(5, 0))
         
-        # Analyze button
-        analyze_button = tk.Button(
+        # Analyze button (stored as instance variable so threading can disable/re-enable it)
+        self.run_button = tk.Button(
             self.root,
             text="Start Dance Sync Analysis",
             command=self.start_analysis,
@@ -221,7 +223,7 @@ class DanceSyncGUI:
             padx=30,
             pady=10
         )
-        analyze_button.pack(pady=20)
+        self.run_button.pack(pady=20)
         
         # Status text
         self.status_text = tk.Text(
@@ -281,37 +283,46 @@ class DanceSyncGUI:
         self.root.update()
     
     def start_analysis(self):
-        """Start the dance sync analysis."""
+        """Start the dance sync analysis on a background thread."""
         # Validate inputs
         if not self.video1_path.get():
             messagebox.showerror("Error", "Please select your dance video")
             return
-        
+
         if not self.video2_path.get():
             messagebox.showerror("Error", "Please select the model dance video")
             return
-        
+
         if not os.path.exists(self.video1_path.get()):
             messagebox.showerror("Error", f"Video 1 not found: {self.video1_path.get()}")
             return
-        
+
         if not os.path.exists(self.video2_path.get()):
             messagebox.showerror("Error", f"Video 2 not found: {self.video2_path.get()}")
             return
-        
-        # Start analysis in a separate thread
-        self.run_analysis()
-    
+
+        # Disable the run button to prevent concurrent runs
+        if hasattr(self, 'run_button'):
+            self.run_button.config(state='disabled')
+
+        # Kick off the analysis on a daemon background thread
+        t = threading.Thread(target=self.run_analysis, daemon=True)
+        t.start()
+
     def run_analysis(self):
-        """Run the dance sync analysis."""
+        """Run the dance sync analysis (executes on a background thread)."""
+        # All UI mutations go through root.after so Tkinter stays thread-safe.
+        def ui(fn):
+            self.root.after(0, fn)
+
         try:
-            # Update UI
-            self.progress_bar.start()
-            self.progress_label.config(text="Starting analysis...", fg='#f39c12')
-            self.log_message("=" * 50)
-            self.log_message("DANCE SYNC ANALYSIS STARTED")
-            self.log_message("=" * 50)
-            
+            # Update UI from main thread
+            ui(lambda: self.progress_bar.start())
+            ui(lambda: self.progress_label.config(text="Starting analysis...", fg='#f39c12'))
+            ui(lambda: self.log_message("=" * 50))
+            ui(lambda: self.log_message("DANCE SYNC ANALYSIS STARTED"))
+            ui(lambda: self.log_message("=" * 50))
+
             # Prepare command
             cmd = [
                 "python3", "dance.py",
@@ -319,20 +330,20 @@ class DanceSyncGUI:
                 self.video2_path.get(),
                 "--output-dir", self.output_dir.get()
             ]
-            
+
             if not self.create_video.get():
                 cmd.append("--no-video")
-            
-            self.log_message(f"Command: {' '.join(cmd)}")
-            self.log_message("")
-            
+
+            cmd_str = ' '.join(cmd)
+            ui(lambda: self.log_message(f"Command: {cmd_str}"))
+            ui(lambda: self.log_message(""))
+
             # Change to the script directory
             script_dir = os.path.dirname(os.path.abspath(__file__))
             os.chdir(script_dir)
-            
+
             # Activate virtual environment and run
             if os.path.exists("venv_mediapipe/bin/activate"):
-                # Use the virtual environment
                 full_cmd = f"source venv_mediapipe/bin/activate && {' '.join(cmd)}"
                 process = subprocess.Popen(
                     full_cmd,
@@ -344,7 +355,6 @@ class DanceSyncGUI:
                     universal_newlines=True
                 )
             else:
-                # Run directly
                 process = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
@@ -353,64 +363,97 @@ class DanceSyncGUI:
                     bufsize=1,
                     universal_newlines=True
                 )
-            
-            # Read output in real-time
+
+            # Stream subprocess stdout to the log via the main thread
             for line in iter(process.stdout.readline, ''):
                 if line:
-                    self.log_message(line.strip())
-                    self.root.update()
-            
+                    captured = line.strip()
+                    ui(lambda ln=captured: self.log_message(ln))
+
             process.wait()
-            
+
             # Check if analysis was successful
             if process.returncode == 0:
-                self.progress_bar.stop()
-                self.progress_label.config(text="Analysis completed successfully!", fg='#27ae60')
-                self.log_message("")
-                self.log_message("=" * 50)
-                self.log_message("ANALYSIS COMPLETED SUCCESSFULLY!")
-                self.log_message("=" * 50)
-                
-                # Show results
-                output_files = []
-                output_dir = self.output_dir.get()
-                
-                if self.create_video.get():
-                    video_file = os.path.join(output_dir, "comparison_output.mp4")
-                    if os.path.exists(video_file):
-                        output_files.append(f"📹 Comparison video: {video_file}")
-                
-                if self.create_report.get():
-                    report_file = os.path.join(output_dir, "dance_analysis_report.json")
-                    if os.path.exists(report_file):
-                        output_files.append(f"📊 Analysis report: {report_file}")
-                
-                if self.create_visualization.get():
-                    viz_file = os.path.join(output_dir, "sync_scores.png")
-                    if os.path.exists(viz_file):
-                        output_files.append(f"📈 Score visualization: {viz_file}")
-                
-                if output_files:
+                def on_success():
+                    self.progress_bar.stop()
+                    self.progress_label.config(text="Analysis completed successfully!", fg='#27ae60')
                     self.log_message("")
-                    self.log_message("Generated files:")
-                    for file_info in output_files:
-                        self.log_message(f"  {file_info}")
-                
-                messagebox.showinfo("Success", "Dance sync analysis completed successfully!")
+                    self.log_message("=" * 50)
+                    self.log_message("ANALYSIS COMPLETED SUCCESSFULLY!")
+                    self.log_message("=" * 50)
+
+                    # Show output files
+                    output_files = []
+                    output_dir = self.output_dir.get()
+
+                    if self.create_video.get():
+                        video_file = os.path.join(output_dir, "comparison_output.mp4")
+                        if os.path.exists(video_file):
+                            output_files.append(f"📹 Comparison video: {video_file}")
+
+                    if self.create_report.get():
+                        report_file = os.path.join(output_dir, "dance_analysis_report.json")
+                        if os.path.exists(report_file):
+                            output_files.append(f"📊 Analysis report: {report_file}")
+
+                    if self.create_visualization.get():
+                        viz_file = os.path.join(output_dir, "sync_scores.png")
+                        if os.path.exists(viz_file):
+                            output_files.append(f"📈 Score visualization: {viz_file}")
+
+                    if output_files:
+                        self.log_message("")
+                        self.log_message("Generated files:")
+                        for file_info in output_files:
+                            self.log_message(f"  {file_info}")
+
+                    messagebox.showinfo("Success", "Dance sync analysis completed successfully!")
+
+                ui(on_success)
+
+                # Surface the coach review from the JSON report
+                report_file = os.path.join(self.output_dir.get(), "dance_analysis_report.json")
+                if os.path.exists(report_file):
+                    try:
+                        with open(report_file, "r") as f:
+                            report_data = json.load(f)
+                        review_text = (
+                            report_data.get("coach_review", {}) or {}
+                        ).get("review", "")
+                        if review_text:
+                            def show_coach_review(text=review_text):
+                                self.log_message("")
+                                self.log_message("=" * 50)
+                                self.log_message("🕺 Coach review")
+                                self.log_message("=" * 50)
+                                self.log_message(text)
+                            ui(show_coach_review)
+                    except Exception:
+                        pass  # Non-fatal: report may not exist or may lack coach_review
             else:
+                def on_failure():
+                    self.progress_bar.stop()
+                    self.progress_label.config(text="Analysis failed", fg='#e74c3c')
+                    self.log_message("")
+                    self.log_message("=" * 50)
+                    self.log_message("ANALYSIS FAILED!")
+                    self.log_message("=" * 50)
+                    messagebox.showerror("Error", "Analysis failed. Check the log for details.")
+                ui(on_failure)
+
+        except Exception as e:
+            err_msg = str(e)
+            def on_error(msg=err_msg):
                 self.progress_bar.stop()
                 self.progress_label.config(text="Analysis failed", fg='#e74c3c')
-                self.log_message("")
-                self.log_message("=" * 50)
-                self.log_message("ANALYSIS FAILED!")
-                self.log_message("=" * 50)
-                messagebox.showerror("Error", "Analysis failed. Check the log for details.")
-        
-        except Exception as e:
-            self.progress_bar.stop()
-            self.progress_label.config(text="Analysis failed", fg='#e74c3c')
-            self.log_message(f"Error: {str(e)}")
-            messagebox.showerror("Error", f"Analysis failed: {str(e)}")
+                self.log_message(f"Error: {msg}")
+                messagebox.showerror("Error", f"Analysis failed: {msg}")
+            ui(on_error)
+
+        finally:
+            # Always re-enable the run button on main thread
+            if hasattr(self, 'run_button'):
+                ui(lambda: self.run_button.config(state='normal'))
 
 def main():
     """Main function to run the GUI."""

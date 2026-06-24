@@ -1,8 +1,11 @@
 opencv-python>=4.5.0
-mediapipe>=0.8.0
-numpy>=1.19.0
+# Legacy mp.solutions.pose API was removed after 0.10.18; pin to a version that
+# still ships it (current 0.10.35 dropped it entirely).
+mediapipe>=0.10.9,<0.10.19
+numpy>=1.19.0,<2
 scipy>=1.7.0
 librosa>=0.8.0
-soundfile>=0.10.0
 matplotlib>=3.3.0
 Pillow>=8.0.0
+python-dotenv>=1.0.0
+google-generativeai>=0.3.2

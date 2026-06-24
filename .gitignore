@@ -76,3 +76,12 @@ test_*.wav
 *.tmp
 *.temp
 *.log
+.venv/
+.env
+samples/
+
+# demo proof assets (override broad ignores)
+!docs/demo/
+!docs/demo/*.png
+!docs/demo/*.mp4
+!docs/demo/*.json
