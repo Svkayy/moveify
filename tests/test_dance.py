@@ -76,3 +76,34 @@ def test_offset_direction_aligns_real_audio_lag():
     T = list(range(1000)); s1 = list(T); s2 = [-1]*D + list(T)
     o1, o2 = apply_offset(s1, s2, off)
     assert o1[:10] == o2[:10], f"offset {off} did not align (wrong trim direction)"
+
+
+def test_limb_performance_identical_is_high():
+    """Identical frame angles => each limb should be perfectly in sync (~100)."""
+    a = DanceSyncAnalyzer()
+    frame = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]   # 6 limb angles: Left Arm, Right Arm, Left Leg, Right Leg, Left Torso, Right Torso
+    perf = a.analyze_limb_performance([frame], [frame])
+
+    # Check structure: dict with 6 limbs
+    assert isinstance(perf, dict) and len(perf) == 6
+
+    # Check limb names and value structure
+    expected_limbs = {"Left Arm", "Right Arm", "Left Leg", "Right Leg", "Left Torso", "Right Torso"}
+    assert set(perf.keys()) == expected_limbs
+
+    # Check each limb result has required keys and score is in valid range
+    for name, limb_result in perf.items():
+        assert isinstance(limb_result, dict)
+        assert "average_score" in limb_result
+        assert "average_difference" in limb_result
+        assert "frames_analyzed" in limb_result
+
+        score = limb_result["average_score"]
+        assert isinstance(score, (int, float))
+        assert 0.0 <= score <= 100.0
+
+    # Identical inputs => every limb should be perfectly in sync
+    for name, limb_result in perf.items():
+        assert limb_result["average_score"] >= 99.0, f"Limb {name} score {limb_result['average_score']} should be ~100 for identical input"
+        assert limb_result["average_difference"] < 1.0, f"Limb {name} difference should be ~0 for identical input"
+        assert limb_result["frames_analyzed"] == 1
