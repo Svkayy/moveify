@@ -21,14 +21,8 @@ class DanceSyncAnalyzer:
         """Initialize the dance sync analyzer with MediaPipe pose estimation."""
         self.mp_pose = mp.solutions.pose
         self.mp_drawing = mp.solutions.drawing_utils
-        self.pose = self.mp_pose.Pose(
-            static_image_mode=False,
-            model_complexity=2,
-            enable_segmentation=False,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
-        )
-        
+        self._pose = None  # lazily built on first use via the pose property
+
         # Define limb connections for angle calculation
         self.limb_connections = [
             # Arms
@@ -46,6 +40,19 @@ class DanceSyncAnalyzer:
             "Left Arm", "Right Arm", "Left Leg", "Right Leg", 
             "Left Torso", "Right Torso"
         ]
+
+    @property
+    def pose(self):
+        """Lazily build the MediaPipe Pose object on first access."""
+        if self._pose is None:
+            self._pose = self.mp_pose.Pose(
+                static_image_mode=False,
+                model_complexity=2,
+                enable_segmentation=False,
+                min_detection_confidence=0.5,
+                min_tracking_confidence=0.5
+            )
+        return self._pose
 
     def extract_audio(self, video_path: str) -> Tuple[np.ndarray, int]:
         """Extract audio from video file."""
