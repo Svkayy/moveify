@@ -16,6 +16,26 @@ import argparse
 from typing import List, Tuple, Dict, Optional
 import json
 
+def apply_offset(series1, series2, offset_frames):
+    """Trim the leading frames of whichever series starts earlier so the two
+    align, then truncate both to equal length.
+
+    offset_frames > 0: series2 has a delayed-content prefix of length
+        offset_frames — trim series2's head by offset_frames.
+    offset_frames < 0: series2 has a delayed-content prefix of length
+        -offset_frames — trim series2's head by -offset_frames.
+    offset_frames == 0: no trim; both are truncated to equal (min) length.
+
+    Both returned series have equal length (min of the two after trimming).
+    """
+    if offset_frames > 0:
+        series2 = series2[offset_frames:]
+    elif offset_frames < 0:
+        series2 = series2[-offset_frames:]
+    n = min(len(series1), len(series2))
+    return series1[:n], series2[:n]
+
+
 class DanceSyncAnalyzer:
     def __init__(self):
         """Initialize the dance sync analyzer with MediaPipe pose estimation."""
@@ -53,6 +73,15 @@ class DanceSyncAnalyzer:
                 min_tracking_confidence=0.5
             )
         return self._pose
+
+    def _video_fps(self, path: str) -> float:
+        """Return the FPS of the video at path. Defaults to 30.0 if unavailable."""
+        cap = cv2.VideoCapture(path)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        cap.release()
+        if not fps or fps == 0:
+            fps = 30.0
+        return float(fps)
 
     def extract_audio(self, video_path: str) -> Tuple[np.ndarray, int]:
         """Extract audio from video file."""
@@ -190,31 +219,45 @@ class DanceSyncAnalyzer:
         avg_diff = total_diff / valid_angles
         return (1.0 - avg_diff) * 100
 
-    def create_comparison_video(self, video1_path: str, video2_path: str, 
-                              landmarks1: List, landmarks2: List, 
-                              output_path: str = "comparison_output.mp4") -> str:
-        """Create side-by-side comparison video with sync indicators."""
+    def create_comparison_video(self, video1_path: str, video2_path: str,
+                              landmarks1: List, landmarks2: List,
+                              output_path: str = "comparison_output.mp4",
+                              offset_frames: int = 0) -> str:
+        """Create side-by-side comparison video with sync indicators.
+
+        offset_frames aligns the two video streams to compensate for audio offset.
+        Positive offset_frames: skip the first offset_frames frames from video2.
+        Negative offset_frames: skip the first -offset_frames frames from video1.
+        """
         cap1 = cv2.VideoCapture(video1_path)
         cap2 = cv2.VideoCapture(video2_path)
-        
+
         if not cap1.isOpened() or not cap2.isOpened():
             print("Error: Could not open one or both videos")
             return None
-        
+
+        # Skip leading frames for alignment
+        if offset_frames > 0:
+            for _ in range(offset_frames):
+                cap2.read()
+        elif offset_frames < 0:
+            for _ in range(-offset_frames):
+                cap1.read()
+
         # Get video properties
         fps = int(cap1.get(cv2.CAP_PROP_FPS))
         width = int(cap1.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap1.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        
+
         # Create output video writer
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(output_path, fourcc, fps, (width * 2, height))
-        
+
         frame_idx = 0
         while True:
             ret1, frame1 = cap1.read()
             ret2, frame2 = cap2.read()
-            
+
             if not ret1 or not ret2:
                 break
             
@@ -304,13 +347,19 @@ class DanceSyncAnalyzer:
         if not landmarks1 or not landmarks2:
             print("Error: Could not extract pose landmarks")
             return None
-        
+
+        # Convert audio offset (samples) to video frames and align landmark series
+        fps = self._video_fps(video1_path)
+        offset_frames = round(offset / sr1 * fps)
+        landmarks1, landmarks2 = apply_offset(landmarks1, landmarks2, offset_frames)
+        print(f"Audio offset: {offset_frames} frames (aligned landmark series)")
+
         # Step 3: Calculate synchronization scores
         print("Step 3: Calculating synchronization scores...")
         sync_scores = []
         frame_angles1 = []
         frame_angles2 = []
-        
+
         min_frames = min(len(landmarks1), len(landmarks2))
         
         for i in range(min_frames):
@@ -341,14 +390,16 @@ class DanceSyncAnalyzer:
         # Step 4: Create comparison video
         print("Step 4: Creating comparison video...")
         comparison_video = self.create_comparison_video(
-            video1_path, video2_path, landmarks1, landmarks2
+            video1_path, video2_path, landmarks1, landmarks2,
+            offset_frames=offset_frames
         )
-        
+
         # Step 5: Create detailed analysis report
         analysis_results = {
             'video1_path': video1_path,
             'video2_path': video2_path,
             'audio_offset_seconds': offset / sr1,
+            'audio_offset_frames': offset_frames,
             'total_frames': min_frames,
             'valid_frames': len(valid_scores),
             'average_sync_score': avg_sync_score,

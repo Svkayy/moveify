@@ -3,7 +3,7 @@ Unit tests for DanceSyncAnalyzer math methods.
 These tests do NOT trigger MediaPipe/TF-Lite loading (lazy pose init).
 """
 import pytest
-from dance import DanceSyncAnalyzer
+from dance import DanceSyncAnalyzer, apply_offset
 
 
 def _p(x, y):
@@ -38,3 +38,23 @@ def test_sync_score_90deg_apart_is_50():
     a = DanceSyncAnalyzer()
     score = a.calculate_sync_score([0.0, 0.0, 0.0], [90.0, 90.0, 90.0])
     assert abs(score - 50.0) < 1.0
+
+
+def test_apply_offset_aligns_shifted_series():
+    base = [float(i) for i in range(10)]
+    shifted = [-1.0, -1.0, -1.0] + base   # series2 is 'base' delayed by 3 frames
+    a1, a2 = apply_offset(base, shifted, 3)
+    assert a1[0] == a2[0]
+    assert len(a1) == len(a2)
+    assert a1[:5] == a2[:5]
+
+
+def test_apply_offset_negative_trims_series2():
+    a1, a2 = apply_offset([0.,1.,2.,3.,4.], [9.,9.,0.,1.,2.], -2)
+    assert len(a1) == len(a2)
+    assert a1[:3] == a2[:3]
+
+
+def test_apply_offset_zero_truncates_to_min():
+    a1, a2 = apply_offset([1.,2.,3.], [1.,2.], 0)
+    assert len(a1) == len(a2) == 2
