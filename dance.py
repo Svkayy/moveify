@@ -15,6 +15,7 @@ import sys
 import argparse
 from typing import List, Tuple, Dict, Optional
 import json
+import coach
 
 def apply_offset(series1, series2, offset_frames):
     """Align two series by trimming the leading frames of whichever starts earlier.
@@ -406,7 +407,17 @@ class DanceSyncAnalyzer:
             'comparison_video': comparison_video,
             'limb_analysis': self.analyze_limb_performance(frame_angles1, frame_angles2)
         }
-        
+
+        # Normalize limb_analysis (nested dicts) into flat {name: float} for the coach
+        limb_perf = {
+            name: (v['average_score'] if isinstance(v, dict) else float(v))
+            for name, v in analysis_results['limb_analysis'].items()
+        }
+        analysis_results['coach_review'] = coach.generate_review({
+            'overall_sync': avg_sync_score,
+            'limb_performance': limb_perf,
+        })
+
         return analysis_results
 
     def analyze_limb_performance(self, angles1: List, angles2: List) -> Dict:
@@ -517,6 +528,11 @@ def main():
         print(f"Best sync score: {results['max_sync_score']:.2f}%")
         print(f"Worst sync score: {results['min_sync_score']:.2f}%")
         
+        if results.get('coach_review'):
+            cr = results['coach_review']
+            print(f"\nAI Coach Review [{cr['source']}]:")
+            print(f"  {cr['review']}")
+
         print("\nLimb Performance Analysis:")
         for limb, data in results['limb_analysis'].items():
             print(f"  {limb}: {data['average_score']:.1f}% "
