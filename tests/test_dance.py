@@ -49,10 +49,12 @@ def test_apply_offset_aligns_shifted_series():
     assert a1[:5] == a2[:5]
 
 
-def test_apply_offset_negative_trims_series2():
-    a1, a2 = apply_offset([0.,1.,2.,3.,4.], [9.,9.,0.,1.,2.], -2)
+def test_apply_offset_negative_trims_series1():
+    # offset < 0 means series1 leads → trim series1's head
+    # series1 has 2 leading frames before content matches series2
+    a1, a2 = apply_offset([9.,9.,0.,1.,2.], [0.,1.,2.,3.,4.], -2)
     assert len(a1) == len(a2)
-    assert a1[:3] == a2[:3]
+    assert a1[:3] == a2[:3]  # [0.,1.,2.] == [0.,1.,2.]
 
 
 def test_apply_offset_zero_truncates_to_min():

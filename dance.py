@@ -20,10 +20,8 @@ def apply_offset(series1, series2, offset_frames):
     """Trim the leading frames of whichever series starts earlier so the two
     align, then truncate both to equal length.
 
-    offset_frames > 0: series2 has a delayed-content prefix of length
-        offset_frames — trim series2's head by offset_frames.
-    offset_frames < 0: series2 has a delayed-content prefix of length
-        -offset_frames — trim series2's head by -offset_frames.
+    offset_frames > 0: video2 leads (audio1 starts later) — trim series2's head.
+    offset_frames < 0: video1 leads (audio2 starts later) — trim series1's head by -offset_frames.
     offset_frames == 0: no trim; both are truncated to equal (min) length.
 
     Both returned series have equal length (min of the two after trimming).
@@ -31,7 +29,7 @@ def apply_offset(series1, series2, offset_frames):
     if offset_frames > 0:
         series2 = series2[offset_frames:]
     elif offset_frames < 0:
-        series2 = series2[-offset_frames:]
+        series1 = series1[-offset_frames:]
     n = min(len(series1), len(series2))
     return series1[:n], series2[:n]
 
